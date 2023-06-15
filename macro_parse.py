@@ -1,17 +1,60 @@
-import re
-import json
-
-
 def find_value(dictionary, target_column, target_value):
     for key, value in dictionary.items():
         if value[target_column] == target_value:
-            return key  # Return the corresponding key if the value is found
-    return None  # Return None if the value is not found
+            return key
+    return None
+
+
+def update_mdt(instruction: str, mdt_index: int, mdt):
+    mdt[mdt_index] = {
+        'index': mdt_index,
+        'instruction': instruction
+    }
+    mdt_index += 1
+    return mdt_index
+
+
+def update_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int, mnt: dict, mnt_index: int):
+    if lineparts[0].find('&') > 0:
+        mnt[mnt_index] = {
+            'index': mnt_index,
+            'name': lineparts[1],
+            'mdt index': mdt_index,
+        }
+        mnt_index += 1
+        ala[ala_index] = {
+            'index': ala_index,
+            'dummy argument': lineparts[0].replace(',', ''),
+            'index marker': '#0',
+        }
+        ala_index += 1
+        for i in range(1, len(lineparts)-1):
+            ala[ala_index] = {
+                'index': ala_index,
+                'dummy argument': lineparts[i+1].replace(',', ''),
+                'index marker': f'#{i}',
+            }
+            ala_index += 1
+    else:
+        mnt[mnt_index] = {
+            'index': mnt_index,
+            'name': lineparts[0],
+            'mdt index': mdt_index,
+        }
+        mnt_index += 1
+        for i in range(1, len(lineparts)):
+            ala[ala_index] = {
+                'index': ala_index,
+                'dummy argument': lineparts[i].replace(',', ''),
+                'index marker': f'#{i}',
+            }
+            ala_index += 1
+
+    return ala_index, mnt_index
 
 
 def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: dict, ala: dict):
     code = ''
-    print(start_mdt_index, macro_arguments)
     start_dummy_params = mdt[start_mdt_index]['instruction'].split(' ')[1:]
     for i in range(len(macro_arguments)):
         key = find_value(ala, 'dummy argument',
@@ -37,45 +80,9 @@ def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: di
             mdt_index = len(mdt) + 1
             mnt_index = len(mnt) + 1
             ala_index = len(ala) + 1
-            if partsub[0].find('&') > 0:
-                mnt[mnt_index] = {
-                    'index': mnt_index,
-                    'name': partsub[1],
-                    'mdt index': mdt_index,
-                }
-                mnt_index += 1
-                ala[ala_index] = {
-                    'index': ala_index,
-                    'dummy argument': partsub[0].replace(',', ''),
-                    'index marker': '#0',
-                }
-                ala_index += 1
-                for i in range(1, len(partsub)-1):
-                    ala[ala_index] = {
-                        'index': ala_index,
-                        'dummy argument': partsub[i+1].replace(',', ''),
-                        'index marker': f'#{i}',
-                    }
-                    ala_index += 1
-            else:
-                mnt[mnt_index] = {
-                    'index': mnt_index,
-                    'name': partsub[0],
-                    'mdt index': mdt_index,
-                }
-                mnt_index += 1
-                for i in range(1, len(partsub)):
-                    ala[ala_index] = {
-                        'index': ala_index,
-                        'dummy argument': partsub[i].replace(',', ''),
-                        'index marker': f'#{i}',
-                    }
-                    ala_index += 1
-            mdt[mdt_index] = {
-                'index': mdt_index,
-                'instruction': " ".join(partsub)
-            }
-            mdt_index += 1
+            ala_index, mnt_index = update_ala_and_mnt(
+                partsub, ala, ala_index, mdt_index, mnt, mnt_index)
+            mdt_index = update_mdt(" ".join(partsub), mdt_index, mdt)
             start_mdt_index += 1
             while inssub != 'MEND':
                 inssub = mdt[start_mdt_index]['instruction']
@@ -92,11 +99,7 @@ def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: di
                         if index:
                             partsub[i] = index
 
-                mdt[mdt_index] = {
-                    'index': mdt_index,
-                    'instruction': " ".join(partsub)
-                }
-                mdt_index += 1
+                mdt_index = update_mdt(" ".join(partsub), mdt_index, mdt)
                 start_mdt_index += 1
             start_mdt_index -= 1
         else:
@@ -147,40 +150,8 @@ def parse_assembly_code(file_path):
             line_parts = line.split(' ')
 
             if macro_flag == 1 and prev == 'MACRO':
-                if line_parts[0].find('&') > 0:
-                    mnt[mnt_index] = {
-                        'index': mnt_index,
-                        'name': line_parts[1],
-                        'mdt index': mdt_index,
-                    }
-                    mnt_index += 1
-                    ala[ala_index] = {
-                        'index': ala_index,
-                        'dummy argument': line_parts[0].replace(',', ''),
-                        'index marker': '#0',
-                    }
-                    ala_index += 1
-                    for i in range(1, len(line_parts)-1):
-                        ala[ala_index] = {
-                            'index': ala_index,
-                            'dummy argument': line_parts[i+1].replace(',', ''),
-                            'index marker': f'#{i}',
-                        }
-                        ala_index += 1
-                else:
-                    mnt[mnt_index] = {
-                        'index': mnt_index,
-                        'name': line_parts[0],
-                        'mdt index': mdt_index,
-                    }
-                    mnt_index += 1
-                    for i in range(1, len(line_parts)):
-                        ala[ala_index] = {
-                            'index': ala_index,
-                            'dummy argument': line_parts[i].replace(',', ''),
-                            'index marker': f'#{i}',
-                        }
-                        ala_index += 1
+                ala_index, mnt_index = update_ala_and_mnt(
+                    line_parts, ala, ala_index, mdt_index, mnt, mnt_index)
             else:
                 for i in range(len(line_parts)):
                     if line_parts[i].find('&') >= 0:
@@ -190,18 +161,13 @@ def parse_assembly_code(file_path):
                         if index:
                             line_parts[i] = index
 
-            mdt[mdt_index] = {
-                'index': mdt_index,
-                'instruction': " ".join(line_parts)
-            }
-            mdt_index += 1
+            mdt_index = update_mdt(" ".join(line_parts), mdt_index, mdt)
         else:
             macro_match = next(
                 (macro for macro in mnt.values() if macro['name'] in line), None)
             if macro_match:
                 start_mdt_index = macro_match['mdt index']
                 macro_arguments = line.replace(',', '').split(' ')[1:]
-                print(line)
                 expanded_source_code += expand_macro(start_mdt_index,
                                                      macro_arguments, mnt, mdt, ala)
             else:
@@ -236,19 +202,14 @@ def write_table_to_file(table, file_path):
 def main():
     file_path = 'question.txt'
     mnt, mdt, ala = parse_assembly_code(file_path)
-
     write_table_to_file(mnt, 'mnt_table.txt')
+    print("MNT Table generated at: ./mnt_table.txt")
     write_table_to_file(mdt, 'mdt_table.txt')
+    print("MDT Table generated at: ./mdt_table.txt")
     write_table_to_file(ala, 'ala_table.txt')
+    print("ALA Table generated at: ./ala_table.txt")
 
-    data = {
-        'mnt': list(mnt.values()),
-        'mdt': list(mdt.values()),
-        'ala': list(ala.values())
-    }
-
-    with open('data.json', 'w') as file:
-        json.dump(data, file)
+    print("Expanded source code generated at: ./expanded_source_code.txt")
 
 
 if __name__ == '__main__':
