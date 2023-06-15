@@ -5,7 +5,7 @@ def find_value(dictionary, target_column, target_value):
     return None
 
 
-def update_mdt(instruction: str, mdt_index: int, mdt):
+def add_mdt(instruction: str, mdt_index: int, mdt):
     mdt[mdt_index] = {
         'index': mdt_index,
         'instruction': instruction
@@ -14,7 +14,7 @@ def update_mdt(instruction: str, mdt_index: int, mdt):
     return mdt_index
 
 
-def update_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int, mnt: dict, mnt_index: int):
+def add_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int, mnt: dict, mnt_index: int):
     if lineparts[0].find('&') > 0:
         mnt[mnt_index] = {
             'index': mnt_index,
@@ -26,6 +26,7 @@ def update_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int
             'index': ala_index,
             'dummy argument': lineparts[0].replace(',', ''),
             'index marker': '#0',
+            'actual argument': ""
         }
         ala_index += 1
         for i in range(1, len(lineparts)-1):
@@ -33,6 +34,7 @@ def update_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int
                 'index': ala_index,
                 'dummy argument': lineparts[i+1].replace(',', ''),
                 'index marker': f'#{i}',
+                'actual argument': ""
             }
             ala_index += 1
     else:
@@ -47,6 +49,7 @@ def update_ala_and_mnt(lineparts: str, ala: dict, ala_index: int, mdt_index: int
                 'index': ala_index,
                 'dummy argument': lineparts[i].replace(',', ''),
                 'index marker': f'#{i}',
+                'actual argument': ""
             }
             ala_index += 1
 
@@ -60,7 +63,7 @@ def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: di
         key = find_value(ala, 'dummy argument',
                          start_dummy_params[i].replace(',', ''))
         if key != None:
-            ala[key]['actual argument'] = macro_arguments[i]
+            ala[key]['actual argument'] += macro_arguments[i]
     start_mdt_index += 1
     while True:
         instruction = mdt[start_mdt_index]['instruction']
@@ -80,9 +83,9 @@ def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: di
             mdt_index = len(mdt) + 1
             mnt_index = len(mnt) + 1
             ala_index = len(ala) + 1
-            ala_index, mnt_index = update_ala_and_mnt(
+            ala_index, mnt_index = add_ala_and_mnt(
                 partsub, ala, ala_index, mdt_index, mnt, mnt_index)
-            mdt_index = update_mdt(" ".join(partsub), mdt_index, mdt)
+            mdt_index = add_mdt(" ".join(partsub), mdt_index, mdt)
             start_mdt_index += 1
             while inssub != 'MEND':
                 inssub = mdt[start_mdt_index]['instruction']
@@ -99,7 +102,7 @@ def expand_macro(start_mdt_index: int, macro_arguments: list, mnt: dict, mdt: di
                         if index:
                             partsub[i] = index
 
-                mdt_index = update_mdt(" ".join(partsub), mdt_index, mdt)
+                mdt_index = add_mdt(" ".join(partsub), mdt_index, mdt)
                 start_mdt_index += 1
             start_mdt_index -= 1
         else:
@@ -150,7 +153,7 @@ def parse_assembly_code(file_path):
             line_parts = line.split(' ')
 
             if macro_flag == 1 and prev == 'MACRO':
-                ala_index, mnt_index = update_ala_and_mnt(
+                ala_index, mnt_index = add_ala_and_mnt(
                     line_parts, ala, ala_index, mdt_index, mnt, mnt_index)
             else:
                 for i in range(len(line_parts)):
@@ -161,7 +164,7 @@ def parse_assembly_code(file_path):
                         if index:
                             line_parts[i] = index
 
-            mdt_index = update_mdt(" ".join(line_parts), mdt_index, mdt)
+            mdt_index = add_mdt(" ".join(line_parts), mdt_index, mdt)
         else:
             macro_match = next(
                 (macro for macro in mnt.values() if macro['name'] in line), None)
