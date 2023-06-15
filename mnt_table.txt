@@ -1,0 +1,4 @@
+index	name 	mdt index
+1    	STORE	1        
+2    	TRY  	4        
+3    	PLUS 	13       

@@ -1,0 +1,24 @@
+MACRO
+    STORE &ANS
+    ST 1, &ANS
+MEND
+
+MACRO
+    TRY &ADD, &DEST
+    SR 1,1
+    MACRO
+        &ADD &A, &B
+        L 1, &A
+        A 1, &B
+    MEND
+    &DEST DS F
+MEND
+
+EXAMPLE START 0
+    USING *, 15
+    TRY PLUS, RESULT
+    PLUS N1, N2
+    STORE RESULT
+    N1 DC F'4'
+    N2 DC F'5'
+END

@@ -1,0 +1,6 @@
+index	dummy argument	index marker	actual argument
+1    	&ANS          	#1          	RESULT         
+2    	&ADD          	#1          	PLUS           
+3    	&DEST         	#2          	RESULT         
+4    	&A            	#1          	N1             
+5    	&B            	#2          	N2             
